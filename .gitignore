@@ -1,0 +1,84 @@
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# Java & Gradle/Maven
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+logs/
+*.log
+
+# Compilación
+/target/
+/build/
+/out/
+
+# IDEs & Herramientas
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+*.factorypath
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración de entorno
+.env
+
+# Dependencias de Maven y Gradle
+.mvn/
+.gradle/
+**/node_modules/
+**/.DS_Store
+
+# Archivos de prueba y cobertura
+/test-output/
+/coverage/
+/reports/
+
+# Archivos temporales y caché
+*.swp
+*.swo
+~*
+*.bak
+*.tmp
