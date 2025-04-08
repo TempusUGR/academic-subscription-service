@@ -12,4 +12,9 @@ public interface SubscriptionRepository extends MongoRepository<Subscription, St
 
     List<Subscription> findByStudentId(Integer student_id);
 
+    List<Subscription> findByStudentIdAndGradeName(Integer studentInteger, String grade);
+
+    Subscription findByStudentIdAndGradeNameAndSubjectNameAndGroupName(Integer studentInteger, String grade,
+            String subject, String group);
+
 }

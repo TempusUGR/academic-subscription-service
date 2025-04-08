@@ -2,10 +2,12 @@ package com.calendarugr.academic_subscription_service;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 import io.github.cdimascio.dotenv.Dotenv;
 
 @SpringBootApplication
+@EnableDiscoveryClient
 public class AcademicSubscriptionServiceApplication {
 
 	public static void main(String[] args) {

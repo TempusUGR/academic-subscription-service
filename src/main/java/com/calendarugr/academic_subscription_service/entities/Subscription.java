@@ -24,6 +24,10 @@ public class Subscription {
     @NotNull(message = "Student ID cannot be null")
     private Integer studentId;
 
+    @NotNull(message = "Faculty name cannot be null")
+    @Size(max = 255, message = "Faculty name must not exceed 255 characters")
+    private String facultyName;
+
     @NotNull(message = "Grade name cannot be null")
     @Size(max = 255, message = "Grade name must not exceed 255 characters")
     private String gradeName;

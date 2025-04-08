@@ -1,6 +1,7 @@
 package com.calendarugr.academic_subscription_service.entities;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -37,17 +38,17 @@ public class ExtraClasses {
     private String groupName;
 
     @NotNull(message = "Day cannot be null")
-    @Size(max = 20, message = "Day must not exceed 20 characters") // e.g., "Monday", "Tuesday"
+    @Size(max = 20, message = "Day must not exceed 20 characters") 
     private String day;
 
     @NotNull(message = "Date cannot be null")
     private LocalDate date;
 
     @NotNull(message = "Start hour cannot be null")
-    private String initHour; // Consider using LocalTime or a specific format
+    private LocalDateTime initHour; 
 
     @NotNull(message = "Finish hour cannot be null")
-    private String finishHour; // Consider using LocalTime or a specific format
+    private LocalDateTime finishHour; 
 
     @NotNull(message = "Teacher cannot be null")
     @Size(max = 100, message = "Teacher must not exceed 100 characters")
@@ -60,6 +61,11 @@ public class ExtraClasses {
     @NotNull(message = "Title cannot be null")
     @Size(max = 200, message = "Title must not exceed 200 characters")
     private String title;
+
+    @NotNull(message = "Type cannot be null")
+    @Size(max = 50, message = "Type must not exceed 50 characters")
+    @Pattern(regexp = "GROUP|FACULTY", message = "Type must be either 'GROUP' or 'FACULTY'")
+    private String type;
 
     @CreatedDate
     private LocalDateTime createdAt;
