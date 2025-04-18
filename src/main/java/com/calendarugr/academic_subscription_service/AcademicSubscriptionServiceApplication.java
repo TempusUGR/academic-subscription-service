@@ -15,7 +15,8 @@ public class AcademicSubscriptionServiceApplication {
 		Dotenv dotenv = Dotenv.load();
 		System.setProperty("DB_URL", dotenv.get("DB_URL"));
 		System.setProperty("DB_NAME", dotenv.get("DB_NAME"));
-
+		System.setProperty("API_KEY", dotenv.get("API_KEY"));
+		System.setProperty("FTP_PASSWORD", dotenv.get("FTP_PASSWORD"));
 		SpringApplication.run(AcademicSubscriptionServiceApplication.class, args);
 	}
 

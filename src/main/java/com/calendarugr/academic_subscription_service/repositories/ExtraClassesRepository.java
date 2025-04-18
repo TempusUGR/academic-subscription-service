@@ -37,5 +37,10 @@ public interface ExtraClassesRepository extends MongoRepository<ExtraClasses, St
         }
     """)
     List<ExtraClasses> findConflictingClassesOnFacultyEvent(String faculty_name, LocalDate date, LocalDateTime init_hour, LocalDateTime finish_hour);
+    
+    List<ExtraClasses> findByTypeAndGradeNameAndSubjectNameAndGroupName(String type, String gradeName, String subjectName,
+            String groupName);
+
+    List<ExtraClasses> findByTypeAndFacultyNameIn(String type, List<String> uniqueFaculties);
 
 }

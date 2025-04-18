@@ -17,9 +17,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import com.calendarugr.academic_subscription_service.dtos.ClassDTO;
+import com.calendarugr.academic_subscription_service.dtos.ExtraClassDTO;
 
 public class IcsGenerator {
 
@@ -56,6 +58,95 @@ public class IcsGenerator {
         return baos.toByteArray();
     }
 
+    public byte[] generateCompleteICalendar(HashMap<String, List<?>> classes) throws Exception {
+        // We assume that is a "facultyEvents" key, a "classes" key and a "groupEvents"
+        // key
+
+        Calendar calendar = new Calendar();
+
+        calendar.add(new ProdId("-//CalendarUGR//iCal4j 1.0//ES"));
+        calendar.add(ImmutableVersion.VERSION_2_0);
+        calendar.add(ImmutableCalScale.GREGORIAN);
+
+        // Add faculty events
+        List<ExtraClassDTO> facultyEvents = (List<ExtraClassDTO>) classes.get("facultyEvents");
+        if (facultyEvents != null) {
+            for (ExtraClassDTO extraClassDTO : facultyEvents) {
+                VEvent event = createFacultyEvent(extraClassDTO);
+                if (event != null) {
+                    calendar.add(event);
+                }
+            }
+        }
+
+        // Add group events
+        List<ExtraClassDTO> groupEvents = (List<ExtraClassDTO>) classes.get("groupEvents");
+
+        if (groupEvents != null) {
+            for (ExtraClassDTO extraClassDTO : groupEvents) {
+                VEvent event = createGroupEvent(extraClassDTO);
+                if (event != null) {
+                    calendar.add(event);
+                }
+            }
+        }
+
+        // Add classes
+        List<ClassDTO> classesList = (List<ClassDTO>) classes.get("classes");
+        if (classesList != null) {
+            for (ClassDTO classDTO : classesList) {
+                VEvent event = createRecurringEvent(classDTO);
+                calendar.add(event);
+            }
+        }
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        CalendarOutputter outputter = new CalendarOutputter();
+        outputter.output(calendar, baos);
+
+        return baos.toByteArray();
+    }
+
+    private VEvent createFacultyEvent(ExtraClassDTO extraClassDTO) {
+        // Convertir LocalDate y LocalTime a ZonedDateTime
+        ZoneId zoneId = ZoneId.of("Europe/Madrid"); // Zona horaria específica
+        LocalDateTime startDateTime = LocalDateTime.of(extraClassDTO.getDate(), extraClassDTO.getInitHour());
+        LocalDateTime endDateTime = LocalDateTime.of(extraClassDTO.getDate(), extraClassDTO.getFinishHour());
+
+        ZonedDateTime startZoned = startDateTime.atZone(zoneId);
+        ZonedDateTime endZoned = endDateTime.atZone(zoneId);
+
+        VEvent event = new VEvent(startZoned, endZoned, extraClassDTO.getTitle());
+
+        String uniqueId = java.util.UUID.randomUUID().toString() + "@calendarugr";
+        event.add(new Uid(uniqueId));
+
+        event.add(new Location(extraClassDTO.getFacultyName()));
+        event.add(new Categories("Faculty Event"));
+
+        return event;
+    }
+
+    private VEvent createGroupEvent(ExtraClassDTO extraClassDTO) {
+        // Convertir LocalDate y LocalTime a ZonedDateTime
+        ZoneId zoneId = ZoneId.of("Europe/Madrid"); // Zona horaria específica
+        LocalDateTime startDateTime = LocalDateTime.of(extraClassDTO.getDate(), extraClassDTO.getInitHour());
+        LocalDateTime endDateTime = LocalDateTime.of(extraClassDTO.getDate(), extraClassDTO.getFinishHour());
+
+        ZonedDateTime startZoned = startDateTime.atZone(zoneId);
+        ZonedDateTime endZoned = endDateTime.atZone(zoneId);
+
+        VEvent event = new VEvent(startZoned, endZoned, extraClassDTO.getTitle());
+
+        String uniqueId = java.util.UUID.randomUUID().toString() + "@calendarugr";
+        event.add(new Uid(uniqueId));
+
+        event.add(new Location(extraClassDTO.getGroupName()));
+        event.add(new Categories("Group Event"));
+
+        return event;
+    }
+
     private VEvent createRecurringEvent(ClassDTO classDTO) {
         // Convertir LocalDate y LocalTime a ZonedDateTime
         ZoneId zoneId = ZoneId.of("Europe/Madrid"); // Zona horaria específica
@@ -67,8 +158,6 @@ public class IcsGenerator {
 
         // Crear evento
         VEvent event = new VEvent(startZoned, endZoned, classDTO.getGroup() + " - " + classDTO.getSubject());
-
-        System.out.println("Event: " + event);
 
         String uniqueId = java.util.UUID.randomUUID().toString() + "@calendarugr";
         event.add(new Uid(uniqueId));
@@ -82,19 +171,14 @@ public class IcsGenerator {
             System.err.println("URL inválida: " + classDTO.getSubjectUrl());
         }
 
-        System.out.println("Event: " + event);
-
-        // Configurar la regla de recurrencia semanal con `UNTIL` en formato UTC
-        Recur recur = new Recur.Builder()
+        Recur<ZonedDateTime> recur = new Recur.Builder<ZonedDateTime>()
                 .frequency(Frequency.WEEKLY)
-                .until(classDTO.getFinishDate()) // Ahora es LocalDate
+                .until(classDTO.getFinishDate().atStartOfDay(ZoneId.of("UTC"))) 
                 .dayList(Collections.singletonList(mapDayOfWeek(classDTO.getDay())))
                 .build();
 
-        RRule rrule = new RRule(recur);
+        RRule<ZonedDateTime> rrule = new RRule<>(recur);
         event.add(rrule);
-
-        System.out.println("Event: " + event);
 
         return event;
     }

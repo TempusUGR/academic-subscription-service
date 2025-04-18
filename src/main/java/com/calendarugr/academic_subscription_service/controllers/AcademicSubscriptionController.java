@@ -1,5 +1,7 @@
 package com.calendarugr.academic_subscription_service.controllers;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,7 +23,6 @@ import com.calendarugr.academic_subscription_service.dtos.ExtraClassDTO;
 import com.calendarugr.academic_subscription_service.dtos.SubscriptionDTO;
 import com.calendarugr.academic_subscription_service.entities.Subscription;
 import com.calendarugr.academic_subscription_service.services.AcademicSubscriptionService;
-import com.calendarugr.academic_subscription_service.services.IcsGenerator;
 
 @RestController
 @RequestMapping("/academic-subscription")
@@ -33,6 +34,15 @@ public class AcademicSubscriptionController {
     @GetMapping("/classes") // We get X-User-Id from the request headers
     public ResponseEntity<?> getClasses(@RequestHeader("X-User-Id") String userId) {
         List<ClassDTO> classes = academicSubscriptionService.getClasses(userId);
+        if (classes.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron clases para el usuario");
+        }
+        return ResponseEntity.ok(classes);        
+    }
+
+    @GetMapping("/entire-calendar")
+    public ResponseEntity<?> getEntireCalendar(@RequestHeader("X-User-Id") String userId) {
+        HashMap<String,List<?>> classes = academicSubscriptionService.getEntireCalendar(userId);
         if (classes.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron clases para el usuario");
         }
@@ -54,33 +64,43 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> subscribeBatching(@RequestHeader("X-User-Id") String userId, @RequestBody List<SubscriptionDTO> subscriptions) {
         List<SubscriptionDTO> subs = academicSubscriptionService.subscribeBatching(userId, subscriptions);
         if (subs.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Hubo un error al crear las suscripciones, o ya existen");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Hubo un error al crear las suscripciones,comprueba si tienen buen formato o ya existen");
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(subs);    
     }
 
     @GetMapping("/download-ics")
-    public ResponseEntity<?> downloadCalendar( @RequestHeader("X-User-Id") String userId) {
-
-        List<ClassDTO> classes = academicSubscriptionService.getClasses(userId);
-        if (classes.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        System.out.println("Classes: " + classes);
-
+    public ResponseEntity<?> downloadCalendar(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestParam(defaultValue = "true") boolean completeCalendar) {
+    
         try {
-            IcsGenerator ics = new IcsGenerator();
-            byte[] icsFile = ics.generateICalendar(classes);
 
+            byte[] icsFile = academicSubscriptionService.generateIcs(userId, completeCalendar);
             HttpHeaders headers = new HttpHeaders();
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=calendarugr.ics");
-            headers.add(HttpHeaders.CONTENT_TYPE, "text/calendar; charset=utf-8");
-
-            return new ResponseEntity<>(icsFile, headers, HttpStatus.OK);
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=CalendarUGR.ics");
+            headers.add(HttpHeaders.CONTENT_TYPE, "text/calendar");
+            headers.add(HttpHeaders.CONTENT_LENGTH, String.valueOf(icsFile.length));
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(icsFile); 
 
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("HUbo un error construyendo el .ics: " + e.getMessage());
+            return ResponseEntity.internalServerError().body("Hubo un error construyendo el .ics: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/get-sync-url")
+    public ResponseEntity<?> getSyncUrl(@RequestHeader("X-User-Id") String userId) throws IOException {
+        if (userId == null || userId.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("El id de usuario no puede estar vacío");
+        }
+
+        String syncUrl = academicSubscriptionService.getSyncUrl(userId);
+        if (syncUrl == null) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron clases para el usuario");
+        }
+        return ResponseEntity.ok(syncUrl);        
     }
 
     @DeleteMapping("/remove-grade")
@@ -167,5 +187,4 @@ public class AcademicSubscriptionController {
         }
         return ResponseEntity.ok("Evento eliminado correctamente");
     }
-
 }
