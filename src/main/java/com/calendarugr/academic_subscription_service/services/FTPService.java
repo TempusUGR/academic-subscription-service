@@ -3,6 +3,7 @@ package com.calendarugr.academic_subscription_service.services;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,6 @@ public class FTPService {
     public String uploadFileUsingScript(String fileName, byte[] fileContent) throws IOException {
         logger.info("Iniciando la subida del archivo: {}", fileName);
 
-        // Crear un archivo temporal para el array de bytes
         File tempFile = new File("/tmp/"+fileName);
         if (tempFile.exists()) {
             logger.warn("El archivo temporal ya existe y será sobrescrito: {}", tempFile.getAbsolutePath());
@@ -49,20 +49,41 @@ public class FTPService {
             throw e;
         }
 
-        // Ruta al script
-        String scriptPath = getClass().getClassLoader().getResource("scripts/upload_ftp.sh").getPath();
-        logger.info("Ruta del script: {}", scriptPath);        
+        /* Sin JAR, para pruebas locales 
+            String scriptPath = getClass().getClassLoader().getResource("scripts/upload_ftp.sh").getPath();
+            logger.info("Ruta del script: {}", scriptPath);        
 
-        File scriptFile = new File(scriptPath);
-        if (!scriptFile.exists()) {
-            logger.error("El script no existe en la ruta especificada: {}", scriptPath);
-            throw new IOException("El script no existe en la ruta especificada: " + scriptPath);
+            File scriptFile = new File(scriptPath);
+            if (!scriptFile.exists()) {
+                logger.error("El script no existe en la ruta especificada: {}", scriptPath);
+                throw new IOException("El script no existe en la ruta especificada: " + scriptPath);
+            }
+        */
+
+        InputStream scriptStream = getClass().getClassLoader().getResourceAsStream("scripts/upload_ftp.sh");
+        if (scriptStream == null) {
+            logger.error("El script no existe en el JAR: scripts/upload_ftp.sh");
+            throw new IOException("El script no existe en el JAR: scripts/upload_ftp.sh");
         }
 
-        // Construir el comando
+        File tempScript = File.createTempFile("upload_ftp", ".sh");
+        tempScript.deleteOnExit();
+
+        try (FileOutputStream fos = new FileOutputStream(tempScript)) {
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = scriptStream.read(buffer)) != -1) {
+                fos.write(buffer, 0, bytesRead);
+            }
+            logger.info("Script copiado a archivo temporal: {}", tempScript.getAbsolutePath());
+        } catch (IOException e) {
+            logger.error("Error al copiar el script a un archivo temporal", e);
+            throw e;
+        }
+
         ProcessBuilder processBuilder = new ProcessBuilder(
             "zsh",
-            scriptPath,
+            tempScript.getAbsolutePath(),
             ftpHost,
             ftpPort,
             ftpUser,

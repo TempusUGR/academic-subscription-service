@@ -17,6 +17,7 @@ public class AcademicSubscriptionServiceApplication {
 		System.setProperty("DB_NAME", dotenv.get("DB_NAME"));
 		System.setProperty("API_KEY", dotenv.get("API_KEY"));
 		System.setProperty("FTP_PASSWORD", dotenv.get("FTP_PASSWORD"));
+		System.setProperty("EUREKA_URL", dotenv.get("EUREKA_URL"));
 		SpringApplication.run(AcademicSubscriptionServiceApplication.class, args);
 	}
 

@@ -268,6 +268,7 @@ public class AcademicSubscriptionService {
         );
 
         if (!(subscriptionAux == null)) {
+            System.out.println("Subscription already exists");
             return Optional.empty();
         }
 
@@ -282,6 +283,7 @@ public class AcademicSubscriptionService {
             .block();
 
         if (!isValid) {
+            System.out.println("Subscription is not valid");
             return Optional.empty();
         }
 
@@ -298,6 +300,7 @@ public class AcademicSubscriptionService {
         Subscription subscriptionSaved = Optional.of(subscriptionRepository.save(newSubscription)).orElse(null);
 
         if (subscriptionSaved == null) {
+            System.out.println("Error al guardar la suscripción");
             return Optional.empty();
         }
 
@@ -306,7 +309,6 @@ public class AcademicSubscriptionService {
             updateIcsFile(userId);
         } catch (Exception e) {
             System.out.println("Error al actualizar el archivo .ics: " + e.getMessage());
-            return Optional.empty();
         }
 
         return Optional.of(subscriptionSaved);
@@ -459,6 +461,8 @@ public class AcademicSubscriptionService {
             return null;
         }
 
+        extraClassDTO.setType("GROUP");
+
         // Check if the extraClass does not creat conflicts with the regular classes
         Boolean isValid = webClientBuilder.build()
             .post()
@@ -489,11 +493,11 @@ public class AcademicSubscriptionService {
         extraClass.setCreatedAt(java.time.LocalDateTime.now());
         extraClass.setUpdatedAt(java.time.LocalDateTime.now());
 
-        // try{
-        //     extraClassesRepository.save(extraClass);
-        // }catch (Exception e) {
-        //     return null;
-        // }
+        try{
+            extraClassesRepository.save(extraClass);
+        }catch (Exception e) {
+            return null;
+        }
 
         extraClassDTO.setId_user(userId);
         extraClassDTO.setType("GROUP");
@@ -593,6 +597,8 @@ public class AcademicSubscriptionService {
         if (!extraClasses.isEmpty()) {
             return null;
         }
+
+        extraClassDTO.setType("FACULTY");
 
         // Check if the extraClass does not creat conflicts with the regular classes
         Boolean isValid = webClientBuilder.build()

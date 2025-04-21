@@ -54,8 +54,6 @@ public class AcademicSubscriptionController {
         Optional<Subscription> sub = academicSubscriptionService.subscribe(userId, subscription);
         if (sub.isEmpty()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("La suscripción ya existe o no es válida");
-
-
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(sub.get());    
     }
@@ -134,6 +132,12 @@ public class AcademicSubscriptionController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Faltan datos para crear el evento");
         }
 
+        // If classroom, date, day, init hour, finish hour or faculty name are ""
+        if (extraClassDTO.getClassroom().isEmpty() || extraClassDTO.getDate() == null || extraClassDTO.getDay().isEmpty() || extraClassDTO.getInitHour() == null || extraClassDTO.getFinishHour() == null 
+                || extraClassDTO.getFacultyName().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Faltan datos para crear el evento");
+        }
+
         ExtraClassDTO extraClass = academicSubscriptionService.createGroupEvent(userId, extraClassDTO);
         if (extraClass == null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Hubo un error al crear el evento, ya existe o coincide con otra clase");
@@ -164,6 +168,11 @@ public class AcademicSubscriptionController {
 
         if (extraClassDTO.getDate() == null || extraClassDTO.getDay() == null || extraClassDTO.getInitHour() == null || extraClassDTO.getFinishHour() == null 
                 || extraClassDTO.getFacultyName() == null || extraClassDTO.getTitle() == null ) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Faltan datos para crear el evento");
+        }
+
+        if ( extraClassDTO.getDate() == null || extraClassDTO.getDay().isEmpty() || extraClassDTO.getInitHour() == null || extraClassDTO.getFinishHour() == null 
+                || extraClassDTO.getFacultyName().isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Faltan datos para crear el evento");
         }
 

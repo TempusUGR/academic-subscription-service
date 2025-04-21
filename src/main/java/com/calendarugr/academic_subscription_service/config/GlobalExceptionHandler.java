@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+    //MissingRequestHeaderException
+    @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+    public ResponseEntity<String> handleMissingRequestHeaderException(org.springframework.web.bind.MissingRequestHeaderException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing required header: " + e.getHeaderName());
+    }
 
     //RuntimeException
     @ExceptionHandler(RuntimeException.class)
