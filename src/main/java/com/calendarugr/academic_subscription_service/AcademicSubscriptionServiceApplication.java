@@ -17,7 +17,14 @@ public class AcademicSubscriptionServiceApplication {
 		System.setProperty("DB_NAME", dotenv.get("DB_NAME"));
 		System.setProperty("API_KEY", dotenv.get("API_KEY"));
 		System.setProperty("FTP_PASSWORD", dotenv.get("FTP_PASSWORD"));
+		System.setProperty("FTP_USERNAME", dotenv.get("FTP_USERNAME"));
+		System.setProperty("FTP_HOST", dotenv.get("FTP_HOST"));
+		System.setProperty("FTP_PORT", dotenv.get("FTP_PORT"));
 		System.setProperty("EUREKA_URL", dotenv.get("EUREKA_URL"));
+		System.setProperty("RABBITMQ_HOST", dotenv.get("RABBITMQ_HOST"));
+		System.setProperty("RABBITMQ_PORT", dotenv.get("RABBITMQ_PORT"));
+		System.setProperty("RABBITMQ_USERNAME", dotenv.get("RABBITMQ_USERNAME"));
+		System.setProperty("RABBITMQ_PASSWORD", dotenv.get("RABBITMQ_PASSWORD"));
 		SpringApplication.run(AcademicSubscriptionServiceApplication.class, args);
 	}
 

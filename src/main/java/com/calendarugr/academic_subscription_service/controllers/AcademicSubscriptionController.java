@@ -49,7 +49,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.ok(classes);        
     }
 
-    @PostMapping("/subscribe") // We get X-User-Id from the request headers
+    @PostMapping("/subscription") // We get X-User-Id from the request headers
     public ResponseEntity<?> subscribe(@RequestHeader("X-User-Id") String userId, @RequestBody SubscriptionDTO subscription) {
         Optional<Subscription> sub = academicSubscriptionService.subscribe(userId, subscription);
         if (sub.isEmpty()) {
@@ -58,7 +58,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(sub.get());    
     }
 
-    @PostMapping("/subscribe-batching") // We get X-User-Id from the request headers
+    @PostMapping("/subscription-batching") // We get X-User-Id from the request headers
     public ResponseEntity<?> subscribeBatching(@RequestHeader("X-User-Id") String userId, @RequestBody List<SubscriptionDTO> subscriptions) {
         List<SubscriptionDTO> subs = academicSubscriptionService.subscribeBatching(userId, subscriptions);
         if (subs.isEmpty()) {
@@ -67,7 +67,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(subs);    
     }
 
-    @GetMapping("/download-ics")
+    @GetMapping("/ics")
     public ResponseEntity<?> downloadCalendar(
             @RequestHeader("X-User-Id") String userId,
             @RequestParam(defaultValue = "true") boolean completeCalendar) {
@@ -88,7 +88,7 @@ public class AcademicSubscriptionController {
         }
     }
 
-    @GetMapping("/get-sync-url")
+    @GetMapping("/sync-url")
     public ResponseEntity<?> getSyncUrl(@RequestHeader("X-User-Id") String userId) throws IOException {
         if (userId == null || userId.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("El id de usuario no puede estar vacío");
@@ -101,7 +101,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.ok(syncUrl);        
     }
 
-    @DeleteMapping("/remove-grade")
+    @DeleteMapping("/subscription-grade")
     public ResponseEntity<?> removeGrade(@RequestHeader("X-User-Id") String userId, @RequestParam String grade){
         boolean removed = academicSubscriptionService.removeSubscriptionsByGrade(userId, grade);
         if (!removed) {
@@ -110,7 +110,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.ok("Suscripciones eliminadas correctamente");
     }
 
-    @DeleteMapping("/remove-subscription")
+    @DeleteMapping("/subscription")
     public ResponseEntity<?> removeSubscription(@RequestHeader("X-User-Id") String userId, @RequestParam String grade, @RequestParam String subject, @RequestParam String group){
         boolean removed = academicSubscriptionService.removeSubscription(userId, grade, subject, group);
         if (!removed) {
@@ -119,7 +119,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.ok("Suscripciones eliminadas correctamente");
     }
 
-    @PostMapping("/create-group-event")
+    @PostMapping("/group-event")
     public ResponseEntity<?> createGroupEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestBody ExtraClassDTO extraClassDTO) {
         
         if (!userRole.equals("ROLE_TEACHER") && !userRole.equals("ROLE_ADMIN")) {
@@ -145,7 +145,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(extraClass);
     }
 
-    @DeleteMapping("/remove-group-event")
+    @DeleteMapping("/group-event")
     public ResponseEntity<?> removeGroupEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestParam String eventId) {
         
         if (!userRole.equals("ROLE_TEACHER") && !userRole.equals("ROLE_ADMIN")) {
@@ -159,7 +159,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.ok("Evento eliminado correctamente");
     }
 
-    @PostMapping("/create-faculty-event")
+    @PostMapping("/faculty-event")
     public ResponseEntity<?> createFacultyEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestBody ExtraClassDTO extraClassDTO) {
         
         if (!userRole.equals("ROLE_ADMIN")) {
@@ -183,7 +183,7 @@ public class AcademicSubscriptionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(extraClass);
     }
 
-    @DeleteMapping("/remove-faculty-event")
+    @DeleteMapping("/faculty-event")
     public ResponseEntity<?> removeFacultyEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestParam String eventId) {
         
         if (!userRole.equals("ROLE_ADMIN")) {

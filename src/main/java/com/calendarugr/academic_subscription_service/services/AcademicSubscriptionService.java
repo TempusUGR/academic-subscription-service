@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -43,6 +45,8 @@ public class AcademicSubscriptionService {
 
     @Value("${server.port}")
     private String port;
+
+    private Logger logger = LoggerFactory.getLogger(AcademicSubscriptionService.class);
 
     // UNCOMMENT TO USE ZIPKIN
     // @Autowired
@@ -93,9 +97,6 @@ public class AcademicSubscriptionService {
         try{
             ObjectMapper objectMapper = new ObjectMapper();
             String jsonMessage = objectMapper.writeValueAsString(message);
-
-            System.out.println("Mensaje a enviar: " + jsonMessage);
-
             Message msg = MessageBuilder
                 .withBody(jsonMessage.getBytes())
                 .setContentType("application/json")
@@ -103,7 +104,7 @@ public class AcademicSubscriptionService {
 
             rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, msg);
         }catch (JsonProcessingException e){
-            System.out.println("Error al enviar el mensaje: " + e.getMessage());
+            logger.error("Error al convertir el mensaje a JSON: " + e.getMessage());    
         }
     }
 
@@ -188,8 +189,6 @@ public class AcademicSubscriptionService {
         // Subscriptions to dto
         List<SubscriptionDTO> subscriptionsDTO = SubscriptionMapper.toDTOList(subscriptions);
 
-        System.out.println("Subscriptions DTO: " + subscriptionsDTO);
-
         // Call the schedule-consumer service to get the classes
         List<ClassDTO> classes = webClientBuilder.build()
             .post()
@@ -212,7 +211,6 @@ public class AcademicSubscriptionService {
     public byte[] generateIcs(String userId, boolean completeCalendar) throws Exception {
        
         IcsGenerator icsGenerator = new IcsGenerator();
-        System.out.println("Complete Calendar: " + completeCalendar);
         if (completeCalendar) {
             // Obtener el calendario completo
             HashMap<String, List<?>> classes = getEntireCalendar(userId);
@@ -268,7 +266,7 @@ public class AcademicSubscriptionService {
         );
 
         if (!(subscriptionAux == null)) {
-            System.out.println("Subscription already exists");
+            logger.info("Subscription already exists");
             return Optional.empty();
         }
 
@@ -276,14 +274,14 @@ public class AcademicSubscriptionService {
 
         Boolean  isValid = webClientBuilder.build()
             .post()
-            .uri(scheduleConsumerurl + "/validate-subscription")
+            .uri(scheduleConsumerurl + "/subscription-validation")
             .bodyValue(subscription)
             .retrieve()
             .bodyToMono(Boolean.class)
             .block();
 
         if (!isValid) {
-            System.out.println("Subscription is not valid");
+            logger.info("Subscription is not valid");
             return Optional.empty();
         }
 
@@ -300,7 +298,7 @@ public class AcademicSubscriptionService {
         Subscription subscriptionSaved = Optional.of(subscriptionRepository.save(newSubscription)).orElse(null);
 
         if (subscriptionSaved == null) {
-            System.out.println("Error al guardar la suscripción");
+            logger.info("Error saving subscription");
             return Optional.empty();
         }
 
@@ -308,7 +306,7 @@ public class AcademicSubscriptionService {
         try {
             updateIcsFile(userId);
         } catch (Exception e) {
-            System.out.println("Error al actualizar el archivo .ics: " + e.getMessage());
+            logger.info("Error al actualizar el archivo .ics: " + e.getMessage());
         }
 
         return Optional.of(subscriptionSaved);
@@ -349,7 +347,7 @@ public class AcademicSubscriptionService {
             // Now we need to call the schedule-consumer service to validate the subscription
             Boolean  isValid = webClientBuilder.build()
                 .post()
-                .uri(scheduleConsumerurl + "/validate-subscription")
+                .uri(scheduleConsumerurl + "/subscription-validation")
                 .bodyValue(subscription)
                 .retrieve()
                 .bodyToMono(Boolean.class)
@@ -375,7 +373,7 @@ public class AcademicSubscriptionService {
         try {
             updateIcsFile(userId);
         } catch (Exception e) {
-            System.out.println("Error al actualizar el archivo .ics: " + e.getMessage());
+            logger.info("Error al actualizar el archivo .ics: " + e.getMessage());
             return List.of();
         }
 
@@ -401,7 +399,7 @@ public class AcademicSubscriptionService {
         try {
             updateIcsFile(userId);
         } catch (Exception e) {
-            System.out.println("Error al actualizar el archivo .ics: " + e.getMessage());
+            logger.info("Error al actualizar el archivo .ics: " + e.getMessage());
             return false;
         }
 
@@ -416,9 +414,8 @@ public class AcademicSubscriptionService {
         // Check if there is a subscription for the user in the grade, subject and group
         Subscription subscription = subscriptionRepository.findByStudentIdAndGradeNameAndSubjectNameAndGroupName(studentInteger, grade, subject, group);
 
-        System.out.println("Subscription: " + subscription);
-
         if (subscription == null) { 
+            logger.info("Subscription not found");
             return false;
         }
 
@@ -429,7 +426,7 @@ public class AcademicSubscriptionService {
         try {
             updateIcsFile(userId);
         } catch (Exception e) {
-            System.out.println("Error al actualizar el archivo .ics: " + e.getMessage());
+            logger.info("Error al actualizar el archivo .ics: " + e.getMessage());
             return false;
         }
 
@@ -458,6 +455,7 @@ public class AcademicSubscriptionService {
         );
 
         if (!extraClasses.isEmpty()) {
+            logger.info("ExtraClass already exists");
             return null;
         }
 
@@ -466,13 +464,14 @@ public class AcademicSubscriptionService {
         // Check if the extraClass does not creat conflicts with the regular classes
         Boolean isValid = webClientBuilder.build()
             .post()
-            .uri(scheduleConsumerurl + "/validate-extra-class")
+            .uri(scheduleConsumerurl + "/extraclass-validation")
             .bodyValue(extraClassDTO)
             .retrieve()
             .bodyToMono(Boolean.class)
             .block();
 
         if (!isValid) {
+            logger.info("ExtraClass is not valid");
             return null;
         }
 
@@ -496,6 +495,7 @@ public class AcademicSubscriptionService {
         try{
             extraClassesRepository.save(extraClass);
         }catch (Exception e) {
+            logger.error("Error al guardar la extraClass: " + e.getMessage());
             return null;
         }
 
@@ -513,7 +513,6 @@ public class AcademicSubscriptionService {
         );
 
         List<Long> idsLong = ids.stream().map(IdDTO::getStudentId).distinct().toList();
-        System.out.println("Ids: " + ids);
 
         // Now we need to get the emails of the users with the notifications on
         List<String> emails = new ArrayList<>();
@@ -521,7 +520,7 @@ public class AcademicSubscriptionService {
             // Call the user-service to get the emails of the users
             List<?> rawEmails = webClientBuilder.build()
                 .post()
-                .uri(userUrl + "/get-emails")
+                .uri(userUrl + "/email-list")
                 .bodyValue(idsLong)
                 .retrieve()
                 .bodyToFlux(String.class)
@@ -539,17 +538,15 @@ public class AcademicSubscriptionService {
                 }
 
         } catch (Exception e) {
-            System.out.println("Error al obtener los correos: " + e.getMessage());
+            logger.error("Error al obtener los correos de los usuarios: " + e.getMessage());
         }        
 
-        System.out.println("Emails: " + emails);
-        System.out.println("Primer email: " + emails.get(0));
         // Now we need to send the emails to the users
 
         try{
             sendNotificationEmail(emails, extraClassDTO);
         }catch (Exception e) {
-            System.out.println("Error al enviar el correo: " + e.getMessage());
+            logger.error("Error al enviar el correo: " + e.getMessage());
         }
 
         return extraClassDTO;
@@ -590,10 +587,6 @@ public class AcademicSubscriptionService {
             finishHour
         );
 
-        System.out.println("Extra Classes: " + extraClasses);
-        System.out.println("Init Hour: " + initHour);
-        System.out.println("Finish Hour: " + finishHour);
-
         if (!extraClasses.isEmpty()) {
             return null;
         }
@@ -603,13 +596,12 @@ public class AcademicSubscriptionService {
         // Check if the extraClass does not creat conflicts with the regular classes
         Boolean isValid = webClientBuilder.build()
             .post()
-            .uri(scheduleConsumerurl + "/validate-extra-class")
+            .uri(scheduleConsumerurl + "/extraclass-validation")
             .bodyValue(extraClassDTO)
             .retrieve()
             .bodyToMono(Boolean.class)
             .block();
             
-        System.out.println("Is Valid: " + isValid);
         if (!isValid) {
             return null;
         }
@@ -645,7 +637,6 @@ public class AcademicSubscriptionService {
 
     public boolean removeFacultyEvent(String userId, String eventId) {
         ExtraClasses extraClass = extraClassesRepository.findById(eventId).orElse(null);
-        System.out.println("Extra Class: " + extraClass);
 
         if (extraClass == null || !extraClass.getId_user().equals(userId) || !extraClass.getType().equals("FACULTY")) {
             return false;
