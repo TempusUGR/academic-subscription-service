@@ -170,6 +170,11 @@ public class AcademicSubscriptionService {
 
         // Then we are going to get all the group events
         List<Subscription> subscriptions = subscriptionRepository.findByStudentId(studentInteger);
+        
+        if (subscriptions.isEmpty()) {
+            return new HashMap<>();
+        }
+
         List<ExtraClasses> groupEvents = new ArrayList<>();
 
         for (Subscription subscription : subscriptions) {
