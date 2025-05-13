@@ -36,5 +36,7 @@ public class ExtraClassDTO {
     private String title;
 
     private String type;
+
+    private String eventId;
     
 }

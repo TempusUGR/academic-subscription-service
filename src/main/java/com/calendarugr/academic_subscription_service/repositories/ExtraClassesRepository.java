@@ -23,24 +23,28 @@ public interface ExtraClassesRepository extends MongoRepository<ExtraClasses, St
             "date": ?1,
             "classroom": ?2,
             "initHour": { "$lt": ?4 },
-            "finishHour": { "$gt": ?3 }
+            "finishHour": { "$gt": ?3 },
+            "type": "GROUP"
         }
     """)
     List<ExtraClasses> findConflictingClassesOnGroupEvent(String faculty_name, LocalDate date, String classroom, LocalDateTime init_hour, LocalDateTime finish_hour);
-
+    
     @Query("""
         {
             "facultyName": ?0,
             "date": ?1,
-            "initHour": { "$lt": ?3 },
-            "finishHour": { "$gt": ?2 }
+            "initHour": { "$eq": ?3 },
+            "finishHour": { "$eq": ?2 },
+            "title": ?4,
+            "type": "FACULTY"
         }
     """)
-    List<ExtraClasses> findConflictingClassesOnFacultyEvent(String faculty_name, LocalDate date, LocalDateTime init_hour, LocalDateTime finish_hour);
-    
+    List<ExtraClasses> findConflictingClassesOnFacultyEvent(String facultyName, LocalDate date, LocalDateTime initHour, LocalDateTime finishHour, String title);
+
     List<ExtraClasses> findByTypeAndGradeNameAndSubjectNameAndGroupName(String type, String gradeName, String subjectName,
             String groupName);
 
     List<ExtraClasses> findByTypeAndFacultyNameIn(String type, List<String> uniqueFaculties);
+    List<ExtraClasses> findByIdUserAndType(String idUser, String type);
 
 }

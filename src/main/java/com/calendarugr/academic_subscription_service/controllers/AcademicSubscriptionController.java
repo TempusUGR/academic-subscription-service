@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -20,16 +21,18 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.calendarugr.academic_subscription_service.dtos.ClassDTO;
 import com.calendarugr.academic_subscription_service.dtos.ExtraClassDTO;
+import com.calendarugr.academic_subscription_service.dtos.FacultyGroupEventsDTO;
 import com.calendarugr.academic_subscription_service.dtos.SubscriptionDTO;
 import com.calendarugr.academic_subscription_service.entities.Subscription;
-import com.calendarugr.academic_subscription_service.services.AcademicSubscriptionService;
+import com.calendarugr.academic_subscription_service.services.AcademicSubscriptionServiceAlwaysData;
+import com.calendarugr.academic_subscription_service.services.AcademicSubscriptionServiceReverseProxy;
 
 @RestController
 @RequestMapping("/academic-subscription")
 public class AcademicSubscriptionController {
 
     @Autowired 
-    private AcademicSubscriptionService academicSubscriptionService;
+    private AcademicSubscriptionServiceReverseProxy academicSubscriptionService;
 
     @GetMapping("/classes") // We get X-User-Id from the request headers
     public ResponseEntity<?> getClasses(@RequestHeader("X-User-Id") String userId) {
@@ -47,6 +50,15 @@ public class AcademicSubscriptionController {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron clases para el usuario");
         }
         return ResponseEntity.ok(classes);        
+    }
+
+    @GetMapping("/subscriptions") 
+    public ResponseEntity<?> getSubscription(@RequestHeader("X-User-Id") String userId) {
+        List<SubscriptionDTO> subscriptions = academicSubscriptionService.getSubscriptions(userId);
+        if (subscriptions.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron suscripciones para el usuario");
+        }
+        return ResponseEntity.ok(subscriptions);       
     }
 
     @PostMapping("/subscription") // We get X-User-Id from the request headers
@@ -76,7 +88,24 @@ public class AcademicSubscriptionController {
 
             byte[] icsFile = academicSubscriptionService.generateIcs(userId, completeCalendar);
             HttpHeaders headers = new HttpHeaders();
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=CalendarUGR.ics");
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=TempusUGR.ics");
+            headers.add(HttpHeaders.CONTENT_TYPE, "text/calendar");
+            headers.add(HttpHeaders.CONTENT_LENGTH, String.valueOf(icsFile.length));
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(icsFile); 
+
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Hubo un error construyendo el .ics: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/calendar/{identifier}")
+    public ResponseEntity<?> getIcsWithoutCredentials(@PathVariable String identifier) {
+        try {
+            byte[] icsFile = academicSubscriptionService.getIcsWithoutCredentials(identifier);
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=TempusUGR.ics");
             headers.add(HttpHeaders.CONTENT_TYPE, "text/calendar");
             headers.add(HttpHeaders.CONTENT_LENGTH, String.valueOf(icsFile.length));
             return ResponseEntity.ok()
@@ -119,6 +148,17 @@ public class AcademicSubscriptionController {
         return ResponseEntity.ok("Suscripciones eliminadas correctamente");
     }
 
+    @GetMapping("/group-event") // The group events that a user has created
+    public ResponseEntity<?> getGroupEvents(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole) {
+        
+        if (!userRole.equals("ROLE_TEACHER") && !userRole.equals("ROLE_ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes permisos para ver eventos de grupo");
+        }
+
+        List<ExtraClassDTO> extraClasses = academicSubscriptionService.getGroupEvents(userId);
+        return ResponseEntity.ok(extraClasses);        
+    }
+
     @PostMapping("/group-event")
     public ResponseEntity<?> createGroupEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestBody ExtraClassDTO extraClassDTO) {
         
@@ -159,6 +199,17 @@ public class AcademicSubscriptionController {
         return ResponseEntity.ok("Evento eliminado correctamente");
     }
 
+    @GetMapping("/faculty-group-event") // The faculty and group events that a user has created
+    public ResponseEntity<?> getFacultyGroupEvents(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole) {
+        
+        if (!userRole.equals("ROLE_ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes permisos para ver eventos de grupo");
+        }
+
+        FacultyGroupEventsDTO extraClasses = academicSubscriptionService.getFacultyGroupEvents(userId);
+        return ResponseEntity.ok(extraClasses);        
+    }
+
     @PostMapping("/faculty-event")
     public ResponseEntity<?> createFacultyEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestBody ExtraClassDTO extraClassDTO) {
         
@@ -196,4 +247,5 @@ public class AcademicSubscriptionController {
         }
         return ResponseEntity.ok("Evento eliminado correctamente");
     }
+    
 }

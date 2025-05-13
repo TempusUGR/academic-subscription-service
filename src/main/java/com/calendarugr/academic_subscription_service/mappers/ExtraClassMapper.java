@@ -12,7 +12,8 @@ public class ExtraClassMapper {
     // Convertir de ExtraClasses a ExtraClassDTO
     public static ExtraClassDTO toDTO(ExtraClasses extraClass) {
         ExtraClassDTO dto = new ExtraClassDTO();
-        dto.setId_user(extraClass.getId_user());
+        dto.setEventId(extraClass.getId()); // Asignar el id de ExtraClasses al eventId de ExtraClassDTO
+        dto.setId_user(extraClass.getIdUser());
         dto.setFacultyName(extraClass.getFacultyName());
         dto.setGradeName(extraClass.getGradeName());
         dto.setSubjectName(extraClass.getSubjectName());
@@ -27,11 +28,11 @@ public class ExtraClassMapper {
         dto.setType(extraClass.getType());
         return dto;
     }
-
+    
     // Convertir de ExtraClassDTO a ExtraClasses
     public static ExtraClasses toEntity(ExtraClassDTO dto) {
         ExtraClasses extraClass = new ExtraClasses();
-        extraClass.setId_user(dto.getId_user());
+        extraClass.setIdUser(dto.getId_user());
         extraClass.setFacultyName(dto.getFacultyName());
         extraClass.setGradeName(dto.getGradeName());
         extraClass.setSubjectName(dto.getSubjectName());

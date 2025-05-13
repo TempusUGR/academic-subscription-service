@@ -24,6 +24,7 @@ import com.calendarugr.academic_subscription_service.config.RabbitMQConfig;
 import com.calendarugr.academic_subscription_service.dtos.ClassDTO;
 import com.calendarugr.academic_subscription_service.dtos.ExtraClassDTO;
 import com.calendarugr.academic_subscription_service.dtos.FacultyDTO;
+import com.calendarugr.academic_subscription_service.dtos.FacultyGroupEventsDTO;
 import com.calendarugr.academic_subscription_service.dtos.IdDTO;
 import com.calendarugr.academic_subscription_service.dtos.SubscriptionDTO;
 import com.calendarugr.academic_subscription_service.entities.ExtraClasses;
@@ -41,12 +42,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 //import io.micrometer.observation.ObservationRegistry;
 
 @Service
-public class AcademicSubscriptionService {
+public class AcademicSubscriptionServiceAlwaysData implements IAcademicSubscriptionService {
 
     @Value("${server.port}")
     private String port;
 
-    private Logger logger = LoggerFactory.getLogger(AcademicSubscriptionService.class);
+    private Logger logger = LoggerFactory.getLogger(AcademicSubscriptionServiceAlwaysData.class);
 
     // UNCOMMENT TO USE ZIPKIN
     // @Autowired
@@ -106,6 +107,20 @@ public class AcademicSubscriptionService {
         }catch (JsonProcessingException e){
             logger.error("Error al convertir el mensaje a JSON: " + e.getMessage());    
         }
+    }
+
+    private String getUserIdFromIdentifier(String identifier) {
+        StringBuilder userId = new StringBuilder();
+    
+        for (int i = 0; i < identifier.length(); i += 2) {
+            String hexPair = identifier.substring(i, i + 2);
+    
+            char character = (char) Integer.parseInt(hexPair, 16);
+    
+            userId.append(character);
+        }
+    
+        return userId.toString();
     }
 
     public List<ClassDTO> getClasses(String studentId) {
@@ -233,6 +248,16 @@ public class AcademicSubscriptionService {
             // Generar el archivo .ics para las clases
             return icsGenerator.generateICalendar(classes);
         }
+    }
+
+    public byte[] getIcsWithoutCredentials(String identifier) throws Exception {
+
+        String userId = getUserIdFromIdentifier(identifier);
+        if (userId == null) {
+            return null;
+        }
+
+        return this.generateIcs(userId, true);
     }
 
     public String getSyncUrl(String userId) throws IOException {
@@ -481,7 +506,7 @@ public class AcademicSubscriptionService {
         }
 
         ExtraClasses extraClass = new ExtraClasses();
-        extraClass.setId_user(userInteger.toString());
+        extraClass.setIdUser(userInteger.toString());
         extraClass.setFacultyName(extraClassDTO.getFacultyName());
         extraClass.setGradeName(extraClassDTO.getGradeName());
         extraClass.setSubjectName(extraClassDTO.getSubjectName());
@@ -563,7 +588,7 @@ public class AcademicSubscriptionService {
         // Check if there is a extraClass for the user in the eventId
         ExtraClasses extraClass = extraClassesRepository.findById(eventId).orElse(null);
 
-        if (extraClass == null || !extraClass.getId_user().equals(userId) || !extraClass.getType().equals("GROUP")) {
+        if (extraClass == null || !extraClass.getIdUser().equals(userId) || !extraClass.getType().equals("GROUP")) {
             return false;
         }
 
@@ -583,36 +608,23 @@ public class AcademicSubscriptionService {
         LocalDateTime initHour = LocalDateTime.of(defaultDate, extraClassDTO.getInitHour());
         LocalDateTime finishHour = LocalDateTime.of(defaultDate, extraClassDTO.getFinishHour());
 
-        // Check if the extraClass does not create conflicts with another extraClass
-
         List<ExtraClasses> extraClasses = extraClassesRepository.findConflictingClassesOnFacultyEvent(
             extraClassDTO.getFacultyName(),
             date,
             initHour,
-            finishHour
+            finishHour,
+            extraClassDTO.getTitle()
         );
 
         if (!extraClasses.isEmpty()) {
+            logger.info("ExtraClass already exists");
             return null;
         }
 
-        extraClassDTO.setType("FACULTY");
-
-        // Check if the extraClass does not creat conflicts with the regular classes
-        Boolean isValid = webClientBuilder.build()
-            .post()
-            .uri(scheduleConsumerurl + "/extraclass-validation")
-            .bodyValue(extraClassDTO)
-            .retrieve()
-            .bodyToMono(Boolean.class)
-            .block();
-            
-        if (!isValid) {
-            return null;
-        }
+        // Faculty events should not generate conflicts with other events, even other faculty events
 
         ExtraClasses extraClass = new ExtraClasses();
-        extraClass.setId_user(userInteger.toString());
+        extraClass.setIdUser(userInteger.toString());
         extraClass.setFacultyName(extraClassDTO.getFacultyName());
         extraClass.setGradeName(null);
         extraClass.setSubjectName(null);
@@ -643,13 +655,61 @@ public class AcademicSubscriptionService {
     public boolean removeFacultyEvent(String userId, String eventId) {
         ExtraClasses extraClass = extraClassesRepository.findById(eventId).orElse(null);
 
-        if (extraClass == null || !extraClass.getId_user().equals(userId) || !extraClass.getType().equals("FACULTY")) {
+        if (extraClass == null || !extraClass.getIdUser().equals(userId) || !extraClass.getType().equals("FACULTY")) {
             return false;
         }
 
         // Remove the extraClass
         extraClassesRepository.delete(extraClass);
         return true;
+    }
+
+    public List<SubscriptionDTO> getSubscriptions(String userId) {
+        // Pass the String to Integer
+        Integer studentInteger = Integer.parseInt(userId);
+
+        // Get the subscriptions of the user
+        List<Subscription> subscriptions = subscriptionRepository.findByStudentId(studentInteger);
+
+        if (subscriptions.isEmpty()) {
+            return List.of();
+        }
+
+        // From List<Subscription> to List<SubscriptionDTO>
+        List<SubscriptionDTO> subscriptionsDTO = SubscriptionMapper.toDTOList(subscriptions);
+
+        return subscriptionsDTO;
+    }
+
+        public List<ExtraClassDTO> getGroupEvents(String userId) {
+        // From extraclasses, get the classes with type GROUP with the userId
+        List<ExtraClasses> extraClasses = extraClassesRepository.findByIdUserAndType(userId, "GROUP");
+        if (extraClasses.isEmpty()) {
+            return List.of();
+        }
+        // From List<ExtraClasses> to List<ExtraClassDTO>
+        List<ExtraClassDTO> extraClassesDTO = ExtraClassMapper.toDTOList(extraClasses);
+        return extraClassesDTO;
+    }
+
+    public FacultyGroupEventsDTO getFacultyGroupEvents(String userId) {
+        FacultyGroupEventsDTO facultyGroupEventsDTO = new FacultyGroupEventsDTO();
+
+        // From extraclasses, get the classes with type GROUP with the userId
+        List<ExtraClasses> extraClasses = extraClassesRepository.findByIdUserAndType(userId, "GROUP");
+
+        // From List<ExtraClasses> to List<ExtraClassDTO>
+        List<ExtraClassDTO> extraClassesDTO = ExtraClassMapper.toDTOList(extraClasses);
+        facultyGroupEventsDTO.setGroupEvents(extraClassesDTO);
+
+        // From extraclasses, get the classes with type FACULTY with the userId
+        List<ExtraClasses> extraClassesFaculty = extraClassesRepository.findByIdUserAndType(userId, "FACULTY");
+
+        // From List<ExtraClasses> to List<ExtraClassDTO>
+        List<ExtraClassDTO> extraClassesFacultyDTO = ExtraClassMapper.toDTOList(extraClassesFaculty);
+        facultyGroupEventsDTO.setFacultyEvents(extraClassesFacultyDTO);
+        
+        return facultyGroupEventsDTO;
     }
 
 }

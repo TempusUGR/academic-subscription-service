@@ -23,7 +23,7 @@ public class ExtraClasses {
     @Id
     private String id;
 
-    private String id_user; // This refers to the user who created the extra class
+    private String idUser; // This refers to the user who created the extra class
 
     @Size(max = 255, message = "Faculty name must not exceed 255 characters")
     private String facultyName;
