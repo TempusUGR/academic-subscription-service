@@ -39,4 +39,5 @@ public interface IAcademicSubscriptionService {
     ExtraClassDTO createFacultyEvent(String userId, ExtraClassDTO extraClassDTO);
 
     boolean removeFacultyEvent(String userId, String eventId);
+
 }

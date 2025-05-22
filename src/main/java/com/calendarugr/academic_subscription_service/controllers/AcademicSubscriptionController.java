@@ -24,7 +24,6 @@ import com.calendarugr.academic_subscription_service.dtos.ExtraClassDTO;
 import com.calendarugr.academic_subscription_service.dtos.FacultyGroupEventsDTO;
 import com.calendarugr.academic_subscription_service.dtos.SubscriptionDTO;
 import com.calendarugr.academic_subscription_service.entities.Subscription;
-import com.calendarugr.academic_subscription_service.services.AcademicSubscriptionServiceAlwaysData;
 import com.calendarugr.academic_subscription_service.services.AcademicSubscriptionServiceReverseProxy;
 
 @RestController
