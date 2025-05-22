@@ -7,41 +7,44 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import com.calendarugr.academic_subscription_service.dtos.ErrorResponseDTO;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
-    //MissingRequestHeaderException
+
     @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
-    public ResponseEntity<String> handleMissingRequestHeaderException(org.springframework.web.bind.MissingRequestHeaderException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing required header: " + e.getHeaderName());
+    public ResponseEntity<ErrorResponseDTO> handleMissingRequestHeaderException(org.springframework.web.bind.MissingRequestHeaderException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponseDTO("MissingRequestHeader", "Missing required header: " + e.getHeaderName()));
     }
 
-    //RuntimeException
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<String> handleRuntimeException(RuntimeException e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + e.getMessage());
+    public ResponseEntity<ErrorResponseDTO> handleRuntimeException(RuntimeException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new ErrorResponseDTO("RuntimeException", "An unexpected error occurred: " + e.getMessage()));
     }
 
-    //IOException
     @ExceptionHandler(IOException.class)
-    public ResponseEntity<String> handleIOException(IOException e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the request: " + e.getMessage());
+    public ResponseEntity<ErrorResponseDTO> handleIOException(IOException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new ErrorResponseDTO("IOException", "An error occurred while processing the request: " + e.getMessage()));
     }
 
-    //IllegalArgumentException
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid input: " + e.getMessage());
+    public ResponseEntity<ErrorResponseDTO> handleIllegalArgumentException(IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponseDTO("IllegalArgumentException", "Invalid input: " + e.getMessage()));
     }
 
-    //JsonProcessingException
     @ExceptionHandler(com.fasterxml.jackson.core.JsonProcessingException.class)
-    public ResponseEntity<String> handleJsonProcessingException(com.fasterxml.jackson.core.JsonProcessingException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error processing JSON: " + e.getMessage());
+    public ResponseEntity<ErrorResponseDTO> handleJsonProcessingException(com.fasterxml.jackson.core.JsonProcessingException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponseDTO("JsonProcessingException", "Error processing JSON: " + e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<String> handleAllUncaughtException(Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + e.getMessage());
+    public ResponseEntity<ErrorResponseDTO> handleAllUncaughtException(Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new ErrorResponseDTO("Exception", "An unexpected error occurred: " + e.getMessage()));
     }
 }

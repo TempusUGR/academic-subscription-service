@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.calendarugr.academic_subscription_service.dtos.ClassDTO;
+import com.calendarugr.academic_subscription_service.dtos.ErrorResponseDTO;
 import com.calendarugr.academic_subscription_service.dtos.ExtraClassDTO;
 import com.calendarugr.academic_subscription_service.dtos.FacultyGroupEventsDTO;
 import com.calendarugr.academic_subscription_service.dtos.SubscriptionDTO;
@@ -37,7 +38,8 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> getClasses(@RequestHeader("X-User-Id") String userId) {
         List<ClassDTO> classes = academicSubscriptionService.getClasses(userId);
         if (classes.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron clases para el usuario");
+            // ErrorResponseDTO
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(new ErrorResponseDTO("NoContent", "No se encontraron clases para el usuario"));
         }
         return ResponseEntity.ok(classes);        
     }
@@ -46,7 +48,7 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> getEntireCalendar(@RequestHeader("X-User-Id") String userId) {
         HashMap<String,List<?>> classes = academicSubscriptionService.getEntireCalendar(userId);
         if (classes.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron clases para el usuario");
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(new ErrorResponseDTO("NoContent", "No se encontraron clases para el usuario"));
         }
         return ResponseEntity.ok(classes);        
     }
@@ -55,7 +57,7 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> getSubscription(@RequestHeader("X-User-Id") String userId) {
         List<SubscriptionDTO> subscriptions = academicSubscriptionService.getSubscriptions(userId);
         if (subscriptions.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron suscripciones para el usuario");
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(new ErrorResponseDTO("NoContent", "No se encontraron suscripciones para el usuario"));
         }
         return ResponseEntity.ok(subscriptions);       
     }
@@ -64,7 +66,7 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> subscribe(@RequestHeader("X-User-Id") String userId, @RequestBody SubscriptionDTO subscription) {
         Optional<Subscription> sub = academicSubscriptionService.subscribe(userId, subscription);
         if (sub.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("La suscripción ya existe o no es válida");
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(new ErrorResponseDTO("Conflict", "Hubo un error al crear la suscripción, comprueba si tiene buen formato o ya existe"));
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(sub.get());    
     }
@@ -73,7 +75,7 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> subscribeBatching(@RequestHeader("X-User-Id") String userId, @RequestBody List<SubscriptionDTO> subscriptions) {
         List<SubscriptionDTO> subs = academicSubscriptionService.subscribeBatching(userId, subscriptions);
         if (subs.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Hubo un error al crear las suscripciones,comprueba si tienen buen formato o ya existen");
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(new ErrorResponseDTO("Conflict", "Hubo un error al crear las suscripciones, comprueba si tienen buen formato o ya existen"));
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(subs);    
     }
@@ -95,7 +97,7 @@ public class AcademicSubscriptionController {
                     .body(icsFile); 
 
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Hubo un error construyendo el .ics: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(new ErrorResponseDTO("InternalServerError", "Hubo un error construyendo el .ics: " + e.getMessage()));
         }
     }
 
@@ -112,19 +114,19 @@ public class AcademicSubscriptionController {
                     .body(icsFile); 
 
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Hubo un error construyendo el .ics: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(new ErrorResponseDTO("InternalServerError", "Hubo un error construyendo el .ics: " + e.getMessage()));
         }
     }
 
     @GetMapping("/sync-url")
     public ResponseEntity<?> getSyncUrl(@RequestHeader("X-User-Id") String userId) throws IOException {
         if (userId == null || userId.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("El id de usuario no puede estar vacío");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponseDTO("BadRequest", "El id de usuario no puede estar vacío"));
         }
 
         String syncUrl = academicSubscriptionService.getSyncUrl(userId);
         if (syncUrl == null) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No se encontraron clases para el usuario");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO("NotFound", "No se encontró la URL de sincronización para el usuario"));
         }
         return ResponseEntity.ok(syncUrl);        
     }
@@ -133,7 +135,7 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> removeGrade(@RequestHeader("X-User-Id") String userId, @RequestParam String grade){
         boolean removed = academicSubscriptionService.removeSubscriptionsByGrade(userId, grade);
         if (!removed) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No se encontraron suscripciones para el usuario");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO("NotFound", "No se encontraron suscripciones para el usuario"));
         }
         return ResponseEntity.ok("Suscripciones eliminadas correctamente");
     }
@@ -142,7 +144,7 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> removeSubscription(@RequestHeader("X-User-Id") String userId, @RequestParam String grade, @RequestParam String subject, @RequestParam String group){
         boolean removed = academicSubscriptionService.removeSubscription(userId, grade, subject, group);
         if (!removed) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No se encontraron suscripciones para el usuario");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO("NotFound", "No se encontraron suscripciones para el usuario"));
         }
         return ResponseEntity.ok("Suscripciones eliminadas correctamente");
     }
@@ -151,7 +153,7 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> getGroupEvents(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole) {
         
         if (!userRole.equals("ROLE_TEACHER") && !userRole.equals("ROLE_ADMIN")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes permisos para ver eventos de grupo");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponseDTO("Forbidden", "No tienes permisos para ver eventos de grupo"));
         }
 
         List<ExtraClassDTO> extraClasses = academicSubscriptionService.getGroupEvents(userId);
@@ -162,24 +164,24 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> createGroupEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestBody ExtraClassDTO extraClassDTO) {
         
         if (!userRole.equals("ROLE_TEACHER") && !userRole.equals("ROLE_ADMIN")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes permisos para crear eventos de grupo");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponseDTO("Forbidden", "No tienes permisos para crear eventos de grupo"));
         }
 
         if (extraClassDTO.getDate() == null || extraClassDTO.getDay() == null || extraClassDTO.getInitHour() == null || extraClassDTO.getFinishHour() == null 
                 || extraClassDTO.getFacultyName() == null || extraClassDTO.getTitle() == null || extraClassDTO.getTeacher() == null 
             || extraClassDTO.getGroupName() == null || extraClassDTO.getSubjectName() == null || extraClassDTO.getGradeName() == null || extraClassDTO.getClassroom() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Faltan datos para crear el evento");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponseDTO("BadRequest", "Faltan datos para crear el evento"));
         }
 
         // If classroom, date, day, init hour, finish hour or faculty name are ""
         if (extraClassDTO.getClassroom().isEmpty() || extraClassDTO.getDate() == null || extraClassDTO.getDay().isEmpty() || extraClassDTO.getInitHour() == null || extraClassDTO.getFinishHour() == null 
                 || extraClassDTO.getFacultyName().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Faltan datos para crear el evento");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponseDTO("BadRequest", "Faltan datos para crear el evento"));
         }
 
         ExtraClassDTO extraClass = academicSubscriptionService.createGroupEvent(userId, extraClassDTO);
         if (extraClass == null) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Hubo un error al crear el evento, ya existe o coincide con otra clase");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponseDTO("Conflict", "Hubo un error al crear el evento, ya existe o coincide con otra clase"));
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(extraClass);
     }
@@ -188,12 +190,12 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> removeGroupEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestParam String eventId) {
         
         if (!userRole.equals("ROLE_TEACHER") && !userRole.equals("ROLE_ADMIN")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes permisos para eliminar eventos de grupo");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponseDTO("Forbidden", "No tienes permisos para eliminar eventos de grupo"));
         }
 
         boolean removed = academicSubscriptionService.removeGroupEvent(userId, eventId);
         if (!removed) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No se encontraron eventos para el usuario");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO("NotFound", "No se encontraron eventos para el usuario"));
         }
         return ResponseEntity.ok("Evento eliminado correctamente");
     }
@@ -202,7 +204,7 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> getFacultyGroupEvents(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole) {
         
         if (!userRole.equals("ROLE_ADMIN")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes permisos para ver eventos de grupo");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponseDTO("Forbidden", "No tienes permisos para ver eventos de facultad"));
         }
 
         FacultyGroupEventsDTO extraClasses = academicSubscriptionService.getFacultyGroupEvents(userId);
@@ -213,22 +215,22 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> createFacultyEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestBody ExtraClassDTO extraClassDTO) {
         
         if (!userRole.equals("ROLE_ADMIN")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes permisos para crear eventos de facultad");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponseDTO("Forbidden", "No tienes permisos para crear eventos de facultad"));
         }
 
         if (extraClassDTO.getDate() == null || extraClassDTO.getDay() == null || extraClassDTO.getInitHour() == null || extraClassDTO.getFinishHour() == null 
                 || extraClassDTO.getFacultyName() == null || extraClassDTO.getTitle() == null ) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Faltan datos para crear el evento");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponseDTO("BadRequest", "Faltan datos para crear el evento"));
         }
 
         if ( extraClassDTO.getDate() == null || extraClassDTO.getDay().isEmpty() || extraClassDTO.getInitHour() == null || extraClassDTO.getFinishHour() == null 
                 || extraClassDTO.getFacultyName().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Faltan datos para crear el evento");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponseDTO("BadRequest", "Faltan datos para crear el evento"));
         }
 
         ExtraClassDTO extraClass = academicSubscriptionService.createFacultyEvent(userId, extraClassDTO);
         if (extraClass == null) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Hubo un error al crear el evento, ya existe o coincide con otra clase");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponseDTO("Conflict", "Hubo un error al crear el evento, ya existe o coincide con otra clase"));
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(extraClass);
     }
@@ -237,12 +239,12 @@ public class AcademicSubscriptionController {
     public ResponseEntity<?> removeFacultyEvent(@RequestHeader("X-User-Id") String userId, @RequestHeader("X-User-Role") String userRole, @RequestParam String eventId) {
         
         if (!userRole.equals("ROLE_ADMIN")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes permisos para eliminar eventos de facultad");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponseDTO("Forbidden", "No tienes permisos para eliminar eventos de facultad"));
         }
 
         boolean removed = academicSubscriptionService.removeFacultyEvent(userId, eventId);
         if (!removed) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No se encontraron eventos para el usuario");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO("NotFound", "No se encontraron eventos para el usuario"));
         }
         return ResponseEntity.ok("Evento eliminado correctamente");
     }
