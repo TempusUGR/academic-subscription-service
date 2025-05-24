@@ -1,6 +1,7 @@
 package com.calendarugr.academic_subscription_service.services;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import java.util.Base64;
 
 import com.calendarugr.academic_subscription_service.config.RabbitMQConfig;
 import com.calendarugr.academic_subscription_service.dtos.ClassDTO;
@@ -67,9 +69,11 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         message.put("gradeName", extraClassDTO.getGradeName());
         message.put("subjectName", extraClassDTO.getSubjectName());
         message.put("groupName", extraClassDTO.getGroupName());
-        message.put("date", extraClassDTO.getDate().getDayOfMonth() + "-" + extraClassDTO.getDate().getMonthValue() + "-" + extraClassDTO.getDate().getYear());
+        message.put("date", extraClassDTO.getDate().getDayOfMonth() + "-" + extraClassDTO.getDate().getMonthValue()
+                + "-" + extraClassDTO.getDate().getYear());
         message.put("initHour", extraClassDTO.getInitHour().getHour() + ":" + extraClassDTO.getInitHour().getMinute());
-        message.put("finishHour", extraClassDTO.getFinishHour().getHour() + ":" + extraClassDTO.getFinishHour().getMinute());
+        message.put("finishHour",
+                extraClassDTO.getFinishHour().getHour() + ":" + extraClassDTO.getFinishHour().getMinute());
         message.put("classroom", extraClassDTO.getClassroom());
         message.put("title", extraClassDTO.getTitle());
         message.put("type", extraClassDTO.getType());
@@ -77,40 +81,29 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         message.put("teacher", extraClassDTO.getTeacher());
         message.put("day", extraClassDTO.getDay());
 
-        try{
+        try {
             ObjectMapper objectMapper = new ObjectMapper();
             String jsonMessage = objectMapper.writeValueAsString(message);
             Message msg = MessageBuilder
-                .withBody(jsonMessage.getBytes())
-                .setContentType("application/json")
-                .build();
+                    .withBody(jsonMessage.getBytes())
+                    .setContentType("application/json")
+                    .build();
 
             rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, msg);
-        }catch (JsonProcessingException e){
-            logger.error("Error al convertir el mensaje a JSON: " + e.getMessage());    
+        } catch (JsonProcessingException e) {
+            logger.error("Error al convertir el mensaje a JSON: " + e.getMessage());
         }
     }
 
     private String getUserIdFromIdentifier(String identifier) {
-        StringBuilder userId = new StringBuilder();
-    
-        for (int i = 0; i < identifier.length(); i += 2) {
-            String hexPair = identifier.substring(i, i + 2);
-    
-            char character = (char) Integer.parseInt(hexPair, 16);
-    
-            userId.append(character);
-        }
-    
-        return userId.toString();
+        // Decodifica el identificador Base64 a String
+        byte[] decodedBytes = Base64.getUrlDecoder().decode(identifier);
+        return new String(decodedBytes, StandardCharsets.UTF_8);
     }
 
-    private String getIdentifierFromUserId(String userId){
-        String identifier = "";
-        for (char c : userId.toCharArray()) {
-            identifier += String.format("%02x", (int) c); // Convert each character to its hexadecimal representation
-        }
-        return identifier;
+    private String getIdentifierFromUserId(String userId) {
+        // Codifica el userId a Base64 URL-safe (sin padding)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(userId.getBytes(StandardCharsets.UTF_8));
     }
 
     public List<ClassDTO> getClasses(String studentId) {
@@ -126,20 +119,20 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
         // From List<Subscription> to List<SubscriptionDTO>
         List<SubscriptionDTO> subscriptionsDTO = SubscriptionMapper.toDTOList(subscriptions);
-        
+
         List<ClassDTO> classes = webClientBuilder.build()
-            .post()
-            .uri(scheduleConsumerurl + "/classes-per-subscriptions")
-            .bodyValue(subscriptionsDTO)
-            .retrieve()
-            .bodyToFlux(ClassDTO.class)
-            .collectList()
-            .block();
+                .post()
+                .uri(scheduleConsumerurl + "/classes-per-subscriptions")
+                .bodyValue(subscriptionsDTO)
+                .retrieve()
+                .bodyToFlux(ClassDTO.class)
+                .collectList()
+                .block();
 
         return classes;
     }
 
-    public HashMap<String,List<?>> getEntireCalendar(String userId) {
+    public HashMap<String, List<?>> getEntireCalendar(String userId) {
 
         // Pass the String to Integer
         Integer studentInteger = Integer.parseInt(userId);
@@ -155,7 +148,7 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
         // Then we are going to get all the group events
         List<Subscription> subscriptions = subscriptionRepository.findByStudentId(studentInteger);
-        
+
         if (subscriptions.isEmpty()) {
             return new HashMap<>();
         }
@@ -163,12 +156,12 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         List<ExtraClasses> groupEvents = new ArrayList<>();
 
         for (Subscription subscription : subscriptions) {
-            List<ExtraClasses> extraClassesGroup = extraClassesRepository.findByTypeAndGradeNameAndSubjectNameAndGroupName(
-                "GROUP",
-                subscription.getGradeName(),
-                subscription.getSubjectName(),
-                subscription.getGroupName()
-            );
+            List<ExtraClasses> extraClassesGroup = extraClassesRepository
+                    .findByTypeAndGradeNameAndSubjectNameAndGroupName(
+                            "GROUP",
+                            subscription.getGradeName(),
+                            subscription.getSubjectName(),
+                            subscription.getGroupName());
 
             groupEvents.addAll(extraClassesGroup);
         }
@@ -181,13 +174,13 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
         // Call the schedule-consumer service to get the classes
         List<ClassDTO> classes = webClientBuilder.build()
-            .post()
-            .uri(scheduleConsumerurl + "/classes-per-subscriptions")
-            .bodyValue(subscriptionsDTO)
-            .retrieve()
-            .bodyToFlux(ClassDTO.class)
-            .collectList()
-            .block();
+                .post()
+                .uri(scheduleConsumerurl + "/classes-per-subscriptions")
+                .bodyValue(subscriptionsDTO)
+                .retrieve()
+                .bodyToFlux(ClassDTO.class)
+                .collectList()
+                .block();
 
         // Now we create the calendar
         HashMap<String, List<?>> calendar = new HashMap<>();
@@ -195,11 +188,11 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         calendar.put("groupEvents", groupEventsDTO);
         calendar.put("classes", classes);
         return calendar;
-        
+
     }
 
     public byte[] generateIcs(String userId, boolean completeCalendar) throws Exception {
-       
+
         IcsGenerator icsGenerator = new IcsGenerator();
         if (completeCalendar) {
             // Obtener el calendario completo
@@ -228,16 +221,16 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         }
 
         // TODO: If generateIcs y successful, we return the file and save in /calendar.
-        // Else if the file exists in /calendar and return it. 
+        // Else if the file exists in /calendar and return it.
         // Else we return null.
 
         return this.generateIcs(userId, true);
     }
 
     public String getSyncUrl(String userId) throws IOException {
-        
+
         String identifier = this.getIdentifierFromUserId(userId);
-        return "http://localhost:8090/academic-subscription/calendar/" + identifier;
+        return "http://172.25.190.139:8090/academic-subscription/calendar/" + identifier;
 
     }
 
@@ -249,26 +242,26 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
         // Check if the subscription already exists
         Subscription subscriptionAux = subscriptionRepository.findByStudentIdAndGradeNameAndSubjectNameAndGroupName(
-            studentInteger,
-            subscription.getGrade(),
-            subscription.getSubject(),
-            subscription.getGroup()
-        );
+                studentInteger,
+                subscription.getGrade(),
+                subscription.getSubject(),
+                subscription.getGroup());
 
         if (!(subscriptionAux == null)) {
             logger.info("Subscription already exists");
             return Optional.empty();
         }
 
-        // Now we need to call the schedule-consumer service to validate the subscription
+        // Now we need to call the schedule-consumer service to validate the
+        // subscription
 
-        Boolean  isValid = webClientBuilder.build()
-            .post()
-            .uri(scheduleConsumerurl + "/subscription-validation")
-            .bodyValue(subscription)
-            .retrieve()
-            .bodyToMono(Boolean.class)
-            .block();
+        Boolean isValid = webClientBuilder.build()
+                .post()
+                .uri(scheduleConsumerurl + "/subscription-validation")
+                .bodyValue(subscription)
+                .retrieve()
+                .bodyToMono(Boolean.class)
+                .block();
 
         if (!isValid) {
             logger.info("Subscription is not valid");
@@ -297,11 +290,11 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
     @Transactional
     public List<SubscriptionDTO> subscribeBatching(String userId, List<SubscriptionDTO> subscriptions) {
-        
+
         if (subscriptions.isEmpty()) {
             return List.of();
         }
-        
+
         for (SubscriptionDTO subscription : subscriptions) {
             // Pass the String to Integer
             Integer studentInteger = Integer.parseInt(userId);
@@ -320,21 +313,23 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
             }
 
             // Check if the subscription already exists
-            Subscription subscriptionAux = subscriptionRepository.findByStudentIdAndGradeNameAndSubjectNameAndGroupName(studentInteger, 
-                subscription.getGrade(), subscription.getSubject(), subscription.getGroup());
+            Subscription subscriptionAux = subscriptionRepository.findByStudentIdAndGradeNameAndSubjectNameAndGroupName(
+                    studentInteger,
+                    subscription.getGrade(), subscription.getSubject(), subscription.getGroup());
 
             if (!(subscriptionAux == null)) {
                 return List.of();
             }
-                
-            // Now we need to call the schedule-consumer service to validate the subscription
-            Boolean  isValid = webClientBuilder.build()
-                .post()
-                .uri(scheduleConsumerurl + "/subscription-validation")
-                .bodyValue(subscription)
-                .retrieve()
-                .bodyToMono(Boolean.class)
-                .block();
+
+            // Now we need to call the schedule-consumer service to validate the
+            // subscription
+            Boolean isValid = webClientBuilder.build()
+                    .post()
+                    .uri(scheduleConsumerurl + "/subscription-validation")
+                    .bodyValue(subscription)
+                    .retrieve()
+                    .bodyToMono(Boolean.class)
+                    .block();
 
             if (!isValid) {
                 return List.of();
@@ -379,9 +374,10 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         Integer studentInteger = Integer.parseInt(userId);
 
         // Check if there is a subscription for the user in the grade, subject and group
-        Subscription subscription = subscriptionRepository.findByStudentIdAndGradeNameAndSubjectNameAndGroupName(studentInteger, grade, subject, group);
+        Subscription subscription = subscriptionRepository
+                .findByStudentIdAndGradeNameAndSubjectNameAndGroupName(studentInteger, grade, subject, group);
 
-        if (subscription == null) { 
+        if (subscription == null) {
             logger.info("Subscription not found");
             return false;
         }
@@ -397,21 +393,20 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         Integer userInteger = Integer.parseInt(userId);
 
         LocalDate date = extraClassDTO.getDate();
-        
+
         // Default date to save with the time
-        LocalDate defaultDate = LocalDate.of(2000,1,1);
+        LocalDate defaultDate = LocalDate.of(2000, 1, 1);
 
         LocalDateTime initHour = LocalDateTime.of(defaultDate, extraClassDTO.getInitHour());
         LocalDateTime finishHour = LocalDateTime.of(defaultDate, extraClassDTO.getFinishHour());
 
         // Check if the extraClass does not create conflicts with another extraClass
         List<ExtraClasses> extraClasses = extraClassesRepository.findConflictingClassesOnGroupEvent(
-            extraClassDTO.getFacultyName(),
-            date,
-            extraClassDTO.getClassroom(),
-            initHour,
-            finishHour
-        );
+                extraClassDTO.getFacultyName(),
+                date,
+                extraClassDTO.getClassroom(),
+                initHour,
+                finishHour);
 
         if (!extraClasses.isEmpty()) {
             logger.info("ExtraClass already exists");
@@ -422,12 +417,12 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
         // Check if the extraClass does not creat conflicts with the regular classes
         Boolean isValid = webClientBuilder.build()
-            .post()
-            .uri(scheduleConsumerurl + "/extraclass-validation")
-            .bodyValue(extraClassDTO)
-            .retrieve()
-            .bodyToMono(Boolean.class)
-            .block();
+                .post()
+                .uri(scheduleConsumerurl + "/extraclass-validation")
+                .bodyValue(extraClassDTO)
+                .retrieve()
+                .bodyToMono(Boolean.class)
+                .block();
 
         if (!isValid) {
             logger.info("ExtraClass is not valid");
@@ -451,9 +446,9 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         extraClass.setCreatedAt(java.time.LocalDateTime.now());
         extraClass.setUpdatedAt(java.time.LocalDateTime.now());
 
-        try{
+        try {
             extraClassesRepository.save(extraClass);
-        }catch (Exception e) {
+        } catch (Exception e) {
             logger.error("Error al guardar la extraClass: " + e.getMessage());
             return null;
         }
@@ -461,15 +456,16 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         extraClassDTO.setId_user(userId);
         extraClassDTO.setType("GROUP");
 
-        // Before returning the extraClassDTO we are going to get all the emails of the Students in the subject group
+        // Before returning the extraClassDTO we are going to get all the emails of the
+        // Students in the subject group
         // and with the notifications on, to send them emails with the information
 
-        // We get a list with the unique ids of users with subscription to the subject group
+        // We get a list with the unique ids of users with subscription to the subject
+        // group
         List<IdDTO> ids = subscriptionRepository.findStudentsIdByGradeNameAndSubjectNameAndGroupName(
-            extraClassDTO.getGradeName(),
-            extraClassDTO.getSubjectName(),
-            extraClassDTO.getGroupName()
-        );
+                extraClassDTO.getGradeName(),
+                extraClassDTO.getSubjectName(),
+                extraClassDTO.getGroupName());
 
         List<Long> idsLong = ids.stream().map(IdDTO::getStudentId).distinct().toList();
 
@@ -478,39 +474,40 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         try {
             // Call the user-service to get the emails of the users
             List<?> rawEmails = webClientBuilder.build()
-                .post()
-                .uri(userUrl + "/email-list")
-                .bodyValue(idsLong)
-                .retrieve()
-                .bodyToFlux(String.class)
-                .collectList()
-                .block();
+                    .post()
+                    .uri(userUrl + "/email-list")
+                    .bodyValue(idsLong)
+                    .retrieve()
+                    .bodyToFlux(String.class)
+                    .collectList()
+                    .block();
 
-                // This is because we get [ [ ... ] ], and we want to get [ ... ]
-                if (!rawEmails.isEmpty() && rawEmails.get(0) instanceof String && ((String) rawEmails.get(0)).startsWith("[") && ((String) rawEmails.get(0)).endsWith("]")) {
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    emails = objectMapper.readValue((String) rawEmails.get(0), new TypeReference<List<String>>() {});
-                } else {
-                    emails = rawEmails.stream()
+            // This is because we get [ [ ... ] ], and we want to get [ ... ]
+            if (!rawEmails.isEmpty() && rawEmails.get(0) instanceof String
+                    && ((String) rawEmails.get(0)).startsWith("[") && ((String) rawEmails.get(0)).endsWith("]")) {
+                ObjectMapper objectMapper = new ObjectMapper();
+                emails = objectMapper.readValue((String) rawEmails.get(0), new TypeReference<List<String>>() {
+                });
+            } else {
+                emails = rawEmails.stream()
                         .map(Object::toString)
                         .toList();
-                }
+            }
 
         } catch (Exception e) {
             logger.error("Error al obtener los correos de los usuarios: " + e.getMessage());
-        }        
+        }
 
         // Now we need to send the emails to the users
 
-        try{
+        try {
             sendNotificationEmail(emails, extraClassDTO);
-        }catch (Exception e) {
+        } catch (Exception e) {
             logger.error("Error al enviar el correo: " + e.getMessage());
         }
 
         return extraClassDTO;
     }
-
 
     public boolean removeGroupEvent(String userId, String eventId) {
 
@@ -532,26 +529,27 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
         LocalDate date = extraClassDTO.getDate();
         // Default date to save with the time
-        LocalDate defaultDate = LocalDate.of(2000,1,1);
+        LocalDate defaultDate = LocalDate.of(2000, 1, 1);
 
         LocalDateTime initHour = LocalDateTime.of(defaultDate, extraClassDTO.getInitHour());
         LocalDateTime finishHour = LocalDateTime.of(defaultDate, extraClassDTO.getFinishHour());
 
-        // Check if there is no extraClass with type FACULTY the same day, date, initHour and finishHour and facultyName
+        // Check if there is no extraClass with type FACULTY the same day, date,
+        // initHour and finishHour and facultyName
         List<ExtraClasses> extraClasses = extraClassesRepository.findConflictingClassesOnFacultyEvent(
-            extraClassDTO.getFacultyName(),
-            date,
-            initHour,
-            finishHour,
-            extraClassDTO.getTitle()
-        );
+                extraClassDTO.getFacultyName(),
+                date,
+                initHour,
+                finishHour,
+                extraClassDTO.getTitle());
 
         if (!extraClasses.isEmpty()) {
             logger.info("ExtraClass already exists");
             return null;
         }
 
-        // Faculty events should not generate conflicts with other events, even other faculty events
+        // Faculty events should not generate conflicts with other events, even other
+        // faculty events
 
         ExtraClasses extraClass = new ExtraClasses();
         extraClass.setIdUser(userInteger.toString());
@@ -570,9 +568,9 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         extraClass.setCreatedAt(java.time.LocalDateTime.now());
         extraClass.setUpdatedAt(java.time.LocalDateTime.now());
 
-        try{
+        try {
             extraClassesRepository.save(extraClass);
-        }catch (Exception e) {
+        } catch (Exception e) {
             return null;
         }
 
@@ -638,7 +636,7 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         // From List<ExtraClasses> to List<ExtraClassDTO>
         List<ExtraClassDTO> extraClassesFacultyDTO = ExtraClassMapper.toDTOList(extraClassesFaculty);
         facultyGroupEventsDTO.setFacultyEvents(extraClassesFacultyDTO);
-        
+
         return facultyGroupEventsDTO;
     }
 
