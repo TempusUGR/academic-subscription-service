@@ -230,7 +230,7 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
     public String getSyncUrl(String userId) throws IOException {
 
         String identifier = this.getIdentifierFromUserId(userId);
-        return "http://172.25.190.139:8090/academic-subscription/calendar/" + identifier;
+        return "https://tempus.ugr.es/calendarugr/v1/academic-subscription/calendar/" + identifier;
 
     }
 
