@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import javax.crypto.spec.SecretKeySpec;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
@@ -39,6 +41,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.Base64;
+
 @Service
 public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscriptionService {
 
@@ -61,6 +67,9 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
     String scheduleConsumerurl = "http://schedule-consumer-service/schedule-consumer";
     String userUrl = "http://user-service/user";
+
+    private static final String SECRET_KEY = System.getProperty("SECRET_KEY");
+    // This is the secret key used to encrypt and decrypt the userId
 
     private void sendNotificationEmail(List<String> emails, ExtraClassDTO extraClassDTO) {
 
@@ -95,15 +104,33 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         }
     }
 
-    private String getUserIdFromIdentifier(String identifier) {
-        // Decodifica el identificador Base64 a String
-        byte[] decodedBytes = Base64.getUrlDecoder().decode(identifier);
-        return new String(decodedBytes, StandardCharsets.UTF_8);
+    private String getIdentifierFromUserId(String userId) {
+        try {
+            SecretKeySpec key = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
+            Cipher cipher = Cipher.getInstance("AES"); // Using AES encryption : Little explanation
+            // AES (Advanced Encryption Standard) is a symmetric encryption algorithm that
+            // uses the same key for both encryption and decryption. It is widely used for
+            // securing data due to its efficiency and security.
+            // The key must be 16, 24, or 32 bytes long for AES-128, AES-192, or AES-256
+            // encryption, respectively. In this case, we are using a 16-byte key.
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+            byte[] encrypted = cipher.doFinal(userId.getBytes());
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(encrypted);
+        } catch (Exception e) {
+            throw new RuntimeException("Error encrypting userId", e);
+        }
     }
 
-    private String getIdentifierFromUserId(String userId) {
-        // Codifica el userId a Base64 URL-safe (sin padding)
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(userId.getBytes(StandardCharsets.UTF_8));
+    private String getUserIdFromIdentifier(String identifier) {
+        try {
+            SecretKeySpec key = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.DECRYPT_MODE, key);
+            byte[] decrypted = cipher.doFinal(Base64.getUrlDecoder().decode(identifier));
+            return new String(decrypted);
+        } catch (Exception e) {
+            throw new RuntimeException("Error decrypting identifier", e);
+        }
     }
 
     public List<ClassDTO> getClasses(String studentId) {
@@ -401,6 +428,8 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         LocalDateTime finishHour = LocalDateTime.of(defaultDate, extraClassDTO.getFinishHour());
 
         // Check if the extraClass does not create conflicts with another extraClass
+        
+        /* Actually we want this kind of events to be able to overlap with other (Ex exams, special class events ...)
         List<ExtraClasses> extraClasses = extraClassesRepository.findConflictingClassesOnGroupEvent(
                 extraClassDTO.getFacultyName(),
                 date,
@@ -411,11 +440,13 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         if (!extraClasses.isEmpty()) {
             logger.info("ExtraClass already exists");
             return null;
-        }
+        }*/
 
         extraClassDTO.setType("GROUP");
 
         // Check if the extraClass does not creat conflicts with the regular classes
+
+        /* We also could want to allow this kind of events to overlap with other official classes
         Boolean isValid = webClientBuilder.build()
                 .post()
                 .uri(scheduleConsumerurl + "/extraclass-validation")
@@ -427,7 +458,7 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         if (!isValid) {
             logger.info("ExtraClass is not valid");
             return null;
-        }
+        }*/
 
         ExtraClasses extraClass = new ExtraClasses();
         extraClass.setIdUser(userInteger.toString());
@@ -536,6 +567,8 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
 
         // Check if there is no extraClass with type FACULTY the same day, date,
         // initHour and finishHour and facultyName
+
+        /* Maybe there is a use case where we want to allow this kind of events to overlap with other faculty events
         List<ExtraClasses> extraClasses = extraClassesRepository.findConflictingClassesOnFacultyEvent(
                 extraClassDTO.getFacultyName(),
                 date,
@@ -546,10 +579,7 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
         if (!extraClasses.isEmpty()) {
             logger.info("ExtraClass already exists");
             return null;
-        }
-
-        // Faculty events should not generate conflicts with other events, even other
-        // faculty events
+        }*/
 
         ExtraClasses extraClass = new ExtraClasses();
         extraClass.setIdUser(userInteger.toString());

@@ -25,6 +25,7 @@ public class AcademicSubscriptionServiceApplication {
 		System.setProperty("RABBITMQ_PORT", dotenv.get("RABBITMQ_PORT"));
 		System.setProperty("RABBITMQ_USERNAME", dotenv.get("RABBITMQ_USERNAME"));
 		System.setProperty("RABBITMQ_PASSWORD", dotenv.get("RABBITMQ_PASSWORD"));
+		System.setProperty("SECRET_KEY", dotenv.get("SECRET_KEY"));
 		SpringApplication.run(AcademicSubscriptionServiceApplication.class, args);
 	}
 
