@@ -247,9 +247,31 @@ public class AcademicSubscriptionServiceReverseProxy implements IAcademicSubscri
             return null;
         }
 
-        // TODO: If generateIcs y successful, we return the file and save in /calendar.
-        // Else if the file exists in /calendar and return it.
-        // Else we return null.
+        // Before returning the file, we send an event to statistics-service
+        Map<String, String> message = new HashMap<>();
+        message.put("type", "ICS_DOWNLOAD");
+        message.put("timestamp", String.valueOf(System.currentTimeMillis()));
+        message.put("userId", String.valueOf(userId));
+        // We could get the role from the user-service, but for now we set it as unknown
+        message.put("userRole", "unknown");
+
+        try {
+            // Convert map to json
+            ObjectMapper objectMapper = new ObjectMapper();
+            String json = objectMapper.writeValueAsString(message);
+
+            // Send message
+            Message msg = MessageBuilder.withBody(json.getBytes())
+                .setContentType("application/json")
+                .build();
+
+            rabbitTemplate.convertAndSend(RabbitMQConfig.STATISTICS_EVENT_EXCHANGE, RabbitMQConfig.STATISTICS_EVENT_ROUTING_KEY, msg);
+
+        } catch (JsonProcessingException e) {
+            // Manejar la excepción aquí
+            e.printStackTrace();
+            throw new RuntimeException("Error processing JSON", e);
+        }
 
         return this.generateIcs(userId, true);
     }
