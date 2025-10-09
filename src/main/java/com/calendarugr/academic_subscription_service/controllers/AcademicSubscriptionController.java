@@ -34,6 +34,14 @@ public class AcademicSubscriptionController {
     @Autowired 
     private AcademicSubscriptionServiceReverseProxy academicSubscriptionService;
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AcademicSubscriptionController.class);
+
+    @GetMapping("/check")
+    public ResponseEntity<?> checkService() {
+        logger.info("Checking academic subscription service health");
+        return ResponseEntity.ok("Academic subscription service is running");
+    }
+
     @GetMapping("/classes") // We get X-User-Id from the request headers
     public ResponseEntity<?> getClasses(@RequestHeader("X-User-Id") String userId) {
         List<ClassDTO> classes = academicSubscriptionService.getClasses(userId);
